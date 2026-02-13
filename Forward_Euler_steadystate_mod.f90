@@ -6,26 +6,25 @@ module Foward_Euler
 
     contains
 
-    ! Source function
-    function S_E(E_j) result(s_result)
+    function S_E(E_j, E_max) result(s_result)
         implicit none
-        REAL, INTENT(IN) :: E_j
-        REAL :: s_result
+        DOUBLE PRECISION, INTENT(IN) :: E_j, E_max
+        Double precision :: s_result
         
-        if (4.6e-9< E_j .and. E_j < 4.8e-9) then
-            s_result = 1 / (4.8e-9 - 4.6e-9)
+        if (E_max*0.98< E_j .and. E_j < E_max) then
+            s_result = 1.0 / (E_max*0.1)
         else
-            s_result = 0
+            s_result = 0.0
         end if
     end function
 
     !cross section primaries
     function f(E_prime, E_j, E_avg) result(f_res)
         implicit none 
-        real, intent(in) :: E_prime, E_j, E_avg
-        real :: f_res, num, den
+        Double precision, intent(in) :: E_prime, E_j, E_avg
+        Double precision :: f_res, num, den
 
-        num = 1
+        num = 1.0
         den = 1.0 + ((E_prime - E_j)/E_avg)**2
 
         f_res = num/den
@@ -34,24 +33,22 @@ module Foward_Euler
     !cross section secondaries
     function g(E_j, I_i, E_avg) result(g_res)
         implicit none 
-        real, intent(in) :: E_j, I_i, E_avg
-        real :: g_res, num, den
+        Double precision, intent(in) :: E_j, I_i, E_avg
+        Double precision :: g_res, num, den
         
-        num = 1
+        num = 1.0
         den = (1.0 + ((I_i + E_j)/E_avg)**2)
         g_res = num/den
     end function
 
-    subroutine Numerical(Energy, E_average, Ionization, number_dens, K_constant, z_new, sigma0, m)
+    subroutine Numerical(Energy, E_average, Ionization, number_dens, K_constant, z_new, sigma0, m, E_max)
         implicit none
         integer :: j_idx, NE, k_idx, i_idx, i_idx2
-        real :: c2, c3, c4, LHS, sigma0, Ej, Ii, integral1, integral2, Ep, E_avgi, dEnergy, m, n_idx
-        real, intent(in) :: Energy(:), E_average(:), Ionization(:), number_dens(:), K_constant
-        real, allocatable :: z_new(:)
+        double precision :: c2, c3, c4, LHS, sigma0, Ej, Ii, integral1, integral2, Ep, E_avgi, dEnergy, m, n_idx
+        double precision, intent(in) :: Energy(:), E_average(:), Ionization(:), number_dens(:), K_constant, E_max
+        double precision, allocatable :: z_new(:)
 
-        !ALLOCATE(z_new(size(Energy)))
-        !z_new = z_initial
-        !z_new(size(z_new)) = 0.0
+    
 
         dEnergy = Energy(2) - Energy(1)
 
@@ -75,8 +72,7 @@ module Foward_Euler
 
                     
                     if (Ep > Ii) then
-                        integral1 = integral1 + n_idx*sigma0*z_new(k_idx)*f(Ep, Ej, E_avgi)*dEnergy
-                        !print *, z_
+                        integral1 =  integral1 + n_idx*sigma0*z_new(k_idx)*f(Ep, Ej, E_avgi)*dEnergy
                     end if
 
                     if (Ep > (Ii + Ej)) then
@@ -104,7 +100,14 @@ module Foward_Euler
             c4 = ( m / (2.0 * Ej) ) * K_constant * z_new(j_idx+1)/ dEnergy
 
           
-            z_new(j_idx) = (S_E(Ej) + integral1 + integral2 + c4) / LHS
+            z_new(j_idx) = (S_E(Ej, E_max) + integral1 + integral2 + c4) / LHS
+            !print *, "S", S_E(Ej, E_max)
+            !print *, "I1", integral1
+            !print *, "I2", integral2
+            !print *, "c4", c4
+            !print *, "c3", c3
+            !print *, "c2", c2
+            !print *, "Znew", z_new
 
         end do
 

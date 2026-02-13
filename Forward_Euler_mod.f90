@@ -7,25 +7,25 @@ module Foward_Euler
     contains
 
     ! Source function
-    function S_E(E_j) result(s_result)
+    function S_E(E_j, E_max) result(s_result)
         implicit none
-        REAL, INTENT(IN) :: E_j
-        REAL :: s_result
+        DOUBLE PRECISION, INTENT(IN) :: E_j, E_max
+        DOUBLE PRECISION :: s_result
         
-        if (4.6e-9< E_j .and. E_j < 4.8e-9) then
-            s_result = 1 / (4.8e-9 - 4.6e-9)
+        if (E_max*0.98< E_j .and. E_j < E_max) then
+            s_result = 1.0 / (E_max*0.1)
         else
-            s_result = 0
+            s_result = 0.0
         end if
     end function
 
     !cross section primaries
     function f(E_prime, E_j, E_avg) result(f_res)
         implicit none 
-        real, intent(in) :: E_prime, E_j, E_avg
-        real :: f_res, num, den
+        DOUBLE PRECISION, intent(in) :: E_prime, E_j, E_avg
+        DOUBLE PRECISION :: f_res, num, den
 
-        num = 1
+        num = 1.0
         den = 1.0 + ((E_prime - E_j)/E_avg)**2
 
         f_res = num/den
@@ -34,28 +34,28 @@ module Foward_Euler
     !cross section secondaries
     function g(E_j, I_i, E_avg) result(g_res)
         implicit none 
-        real, intent(in) :: E_j, I_i, E_avg
-        real :: g_res, num, den
+        DOUBLE PRECISION, intent(in) :: E_j, I_i, E_avg
+        DOUBLE PRECISION :: g_res, num, den
         
-        num = 1
+        num = 1.0
         den = (1.0 + ((I_i + E_j)/E_avg)**2)
         g_res = num/den
     end function
 
     function A(E_j, mass) result(A_res)
         implicit none
-        real, intent(in) :: E_j, mass
-        real :: A_res
+        DOUBLE PRECISION, intent(in) :: E_j, mass
+        DOUBLE PRECISION :: A_res
         
         A_res = sqrt(mass/(2*E_j))
     end function
 
-    subroutine Numerical(Energy, E_average, Ionization, number_dens, K_constant, z_new, z_initial, sigma0, mass, dtime)
+    subroutine Numerical(Energy, E_average, Ionization, number_dens, K_constant, z_new, z_initial, sigma0, mass, dtime, E_max, steady)
         implicit none
         integer :: j_idx, NE, k_idx, i_idx, i_idx2
-        real :: c1, c2, c3, c4, LHS, sigma0, Ej, Ii, integral1, integral2, Ep, E_avgi, dEnergy, mass, n_idx, dtime
-        real, intent(in) :: Energy(:), E_average(:), Ionization(:), number_dens(:), K_constant
-        real, allocatable :: z_new(:), z_initial(:)
+        DOUBLE PRECISION :: c1, c2, c3, c4, LHS, sigma0, Ej, Ii, integral1, integral2, Ep, E_avgi, dEnergy, mass, n_idx, dtime, steady
+        DOUBLE PRECISION, intent(in) :: Energy(:), E_average(:), Ionization(:), number_dens(:), K_constant, E_max
+        DOUBLE PRECISION, allocatable :: z_new(:), z_initial(:)
 
         !ALLOCATE(z_new(size(Energy)))
         !z_new = z_initial
@@ -108,12 +108,12 @@ module Foward_Euler
 
             c3 = ( mass / (2.0 * Ej) ) * K_constant *(1.0 / dEnergy + 1.0 / Ej)
 
-            LHS = c1/dtime + c2 + c3
+            LHS = c1/dtime*steady + c2 + c3
 
             c4 = ( mass / (2.0 * Ej) ) * K_constant * z_new(j_idx+1)/ dEnergy
 
           
-            z_new(j_idx) = (S_E(Ej) + integral1 + integral2 + c4 + z_initial(j_idx)*c1/dtime) / LHS
+            z_new(j_idx) = (S_E(Ej,E_max) + integral1 + integral2 + c4 + z_initial(j_idx)*c1/dtime*steady) / LHS
 
         end do
 
